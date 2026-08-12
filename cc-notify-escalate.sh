@@ -16,6 +16,8 @@ DRY=0
 
 NTFY_TOPIC=""
 NTFY_SERVER="https://ntfy.sh"
+NTFY_TAGS=""
+NTFY_ICON=""
 ESCALATE_AFTER=300
 
 CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
@@ -41,11 +43,13 @@ if [ "$DRY" = "1" ]; then
   exit 0
 fi
 
-curl -fsS \
-  -H "Title: $ETAT" \
-  -H "Priority: high" \
-  -H "Tags: robot" \
-  -d "$TITRE" \
-  "$NTFY_SERVER/$NTFY_TOPIC" >/dev/null 2>&1
+set -- -H "Title: $ETAT" -H "Priority: high"
+# Les tags deviennent des emojis collés au titre. Vides par défaut : sur iOS
+# c'est le seul repère visuel possible, mais tout le monde n'en veut pas.
+[ -n "$NTFY_TAGS" ] && set -- "$@" -H "Tags: $NTFY_TAGS"
+# Icône personnalisée : Android uniquement, et seulement en JPEG ou PNG.
+[ -n "$NTFY_ICON" ] && set -- "$@" -H "Icon: $NTFY_ICON"
+
+curl -fsS "$@" -d "$TITRE" "$NTFY_SERVER/$NTFY_TOPIC" >/dev/null 2>&1
 
 exit 0

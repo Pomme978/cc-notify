@@ -149,9 +149,19 @@ Pour l'activer :
 3. Installer l'application ntfy sur le téléphone et s'abonner à ce sujet
 
 **ntfy.sh est un service public sans authentification.** Quiconque connaît le nom
-du sujet lit vos notifications, et le titre de session — donc le sujet de votre
-conversation avec Claude — y transite en clair. D'où le nom aléatoire. Pour un
-usage sensible, héberger sa propre instance et pointer `NTFY_SERVER` dessus.
+du sujet lit vos notifications, et le nom du dépôt y transite en clair. D'où le
+nom aléatoire. Pour un usage sensible, héberger sa propre instance et pointer
+`NTFY_SERVER` dessus.
+
+### L'icône sur le téléphone
+
+L'en-tête `Icon` de ntfy n'existe **que sur Android**, et seulement en PNG ou
+JPEG. L'application ntfy iOS ne sait pas afficher d'icône personnalisée : le push
+portera toujours l'icône de ntfy.
+
+Aucun emoji n'est envoyé : `NTFY_TAGS` est vide par défaut. Le push porte
+seulement l'état en titre et le nom du dépôt en corps. Si vous en vouliez un
+malgré tout, `NTFY_TAGS` accepte les codes de <https://ntfy.sh/docs/emojis/>.
 
 ## Icône
 
