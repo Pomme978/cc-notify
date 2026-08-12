@@ -19,6 +19,7 @@ CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
 
 STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
 FOCUS_SCPT="${CC_NOTIFY_FOCUS_SCPT:-$HOME/.claude/hooks/cc-notify-focus.scpt}"
+ICON="${CC_NOTIFY_ICON:-$HOME/.claude/hooks/cc-notify-icon.png}"
 LOG="$STATE_DIR/log"
 
 DRY_RUN=0
@@ -40,6 +41,17 @@ log() {
 
 # Lit un champ du payload d'entrée.
 in_get() { printf '%s' "$INPUT" | jq -r "$1" 2>/dev/null; }
+
+# Trace brute de tout événement reçu. Sert à comprendre pourquoi une
+# notification part alors qu'un sous-agent tourne : si SubagentStart n'apparaît
+# pas ici, c'est que Claude Code ne l'émet pas pour ce type de tâche.
+[ "$DEBUG" = "1" ] && log "EVENT $EVENT sid=$SID $(in_get '
+  [ (.agent_type // empty | "agent_type=" + .),
+    (.agent_id // empty | "agent_id=" + .),
+    (.tool_name // empty | "tool=" + .),
+    (.notification_type // empty | "notif=" + .),
+    (.stop_reason // empty | "stop_reason=" + .)
+  ] | join(" ")')"
 
 # ------------------------------------------------------------------- état --
 # Verrou par répertoire : deux sous-agents peuvent démarrer simultanément et
@@ -246,6 +258,8 @@ notify() {
 
   set -- -title "$n_title" -subtitle "$n_sub" -message "$n_msg" \
          -sound "$n_sound" -group "$SID"
+
+  [ -r "$ICON" ] && set -- "$@" -appIcon "$ICON" -contentImage "$ICON"
 
   # Le clic active la fenêtre iTerm et sélectionne la session concernée.
   n_iterm=$(state_get iterm_session)
