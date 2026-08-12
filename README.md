@@ -6,8 +6,18 @@ Notifications macOS pour Claude Code, qui se taisent quand Claude va repartir to
 
 Une bannière macOS quand une session Claude Code dans iTerm réclame vraiment votre
 attention : le tour est fini, une permission est demandée, ou le tour a échoué.
-Le titre porte le nom du dossier, ce qui identifie la session parmi les autres.
 Le clic active la fenêtre iTerm concernée et sélectionne sa session.
+
+La bannière porte l'icône Claude Code et se lit en trois lignes :
+
+| Ligne | Contenu |
+|---|---|
+| Titre | le sujet de la conversation, repris du nom de l'onglet iTerm |
+| Sous-titre | `Terminé`, `Attend ta réponse` ou `Erreur` |
+| Corps | le dernier message de Claude, tronqué |
+
+Claude Code tient le nom de l'onglet à jour avec le sujet de la conversation.
+Avec plusieurs sessions ouvertes, c'est lui qui dit laquelle vous appelle.
 
 Rien ne s'affiche si :
 
@@ -28,7 +38,7 @@ si la session est morte, elle ne repartira pas toute seule.
 apparaissent. Les hooks ne sont pris en compte que par les sessions démarrées
 après l'installation — c'est la cause la plus fréquente de « ça ne filtre pas ».
 
-À la première notification, macOS crée une entrée `terminal-notifier` dans
+À la première notification, macOS crée une entrée **Claude Code** dans
 Réglages Système → Notifications. Y autoriser les bannières et le son.
 
 ## Réglages
@@ -47,9 +57,19 @@ Tout est dans `cc-notify.conf`. `ENABLED=0` coupe tout sans désinstaller.
 
 ## Icône
 
-`cc-notify-icon.png` est produit par `./make-icon.sh` à partir du glyphe officiel
-Claude Code (`assets/claude-code.svg`), recentré dans un carré avec la marge
-qu'attend une icône macOS. Régénérer après toute modification du SVG.
+`./make-icon.sh` produit `cc-notify-icon.png` et `cc-notify.icns` à partir du
+glyphe officiel Claude Code (`assets/claude-code.svg`). Deux retouches : les yeux
+du glyphe sont des trous, on glisse deux rectangles noirs derrière pour qu'ils se
+voient sur tout fond ; et le glyphe, large et bas, est recentré dans un carré.
+
+`./make-app.sh` construit `vendor/cc-notify.app`, une copie de
+`terminal-notifier.app` portant cette icône et le nom « Claude Code ». C'est
+indispensable : macOS ignore l'option `-appIcon`, qui reposait sur une API privée
+retirée depuis. L'icône affichée à gauche d'une notification vient toujours du
+bundle de l'application émettrice — donc il faut émettre depuis le nôtre.
+
+Ni l'icône ni le bundle ne sont versionnés ; `install.sh` les reconstruit s'ils
+manquent. Régénérer à la main après toute modification du SVG.
 
 `assets/CaludeMascot_opt.gif` est conservé comme trace : c'est la mascotte animée
 dont provenait une première version de l'icône. Voir `assets/SOURCE.md`.

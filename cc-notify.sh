@@ -282,7 +282,6 @@ notify() {
     error)    n_sub="Erreur";             n_sound="$SOUND_ERROR" ;;
     *)        n_sub="";                   n_sound="$SOUND_DONE" ;;
   esac
-  n_sub="$n_projet · $n_sub"
 
   n_msg=$(in_get '.last_assistant_message // .error_type // ""' | tr '\n\r\t' '   ')
   n_msg="${n_msg:0:$BODY_LEN}"
