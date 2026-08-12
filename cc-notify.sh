@@ -8,6 +8,9 @@ set -u
 # ------------------------------------------------------------- configuration --
 ENABLED=1
 MIN_DURATION=30
+MIN_IDLE=30
+AGENT_TTL=600
+LOG_MAX_BYTES=500000
 BODY_LEN=120
 SOUND_DONE=Ping
 SOUND_QUESTION=Glass
@@ -40,6 +43,11 @@ log() {
   [ "$DEBUG" = "1" ] || return 0
   mkdir -p "$STATE_DIR" 2>/dev/null
   printf '%s %s\n' "$(date +%FT%T)" "$*" >> "$LOG" 2>/dev/null
+  # Rotation : le journal grossit de plusieurs lignes par tour et ne serait
+  # jamais purgé autrement. On garde la fin, seule utile au diagnostic.
+  if [ -f "$LOG" ] && [ "$(stat -f%z "$LOG" 2>/dev/null || echo 0)" -gt "$LOG_MAX_BYTES" ]; then
+    tail -n 2000 "$LOG" > "$LOG.tmp.$$" 2>/dev/null && mv "$LOG.tmp.$$" "$LOG" 2>/dev/null
+  fi
   return 0
 }
 
@@ -103,22 +111,29 @@ h_user_prompt_submit() {
   iterm="${iterm##*:}"
   cwd=$(in_get '.cwd // ""')
   jq -n --argjson t "$(date +%s)" --arg i "$iterm" --arg c "$cwd" \
-    '{turn_start:$t, subagents:0, bg:0, wakeup_until:0,
+    '{turn_start:$t, agents:{}, bg:0, wakeup_until:0,
       iterm_session:$i, notified_prompt:"", cwd:$c}' > "$STATE" 2>/dev/null
   # Purge des états orphelins de plus de 7 jours.
   find "$STATE_DIR" -name '*.json' -mtime +7 -delete 2>/dev/null
   return 0
 }
 
-h_subagent_start() {
+# Enregistre un agent comme vivant, horodaté. Appelé pour TOUT événement portant
+# un agent_id, pas seulement SubagentStart : certains types d'agents n'émettent
+# pas cet événement, mais leurs appels d'outils portent bien leur identifiant.
+agent_vu() {
+  av_id="$1"
+  [ -z "$av_id" ] && return 0
   lock_state
-  state_merge '.subagents = ((.subagents // 0) + 1)'
+  state_merge '.agents = ((.agents // {}) | .[$k] = $t)' --arg k "$av_id" --argjson t "$(date +%s)"
   unlock_state
 }
 
-h_subagent_stop() {
+agent_parti() {
+  ap_id="$1"
+  [ -z "$ap_id" ] && return 0
   lock_state
-  state_merge '.subagents = ([((.subagents // 0) - 1), 0] | max)'
+  state_merge '.agents = ((.agents // {}) | del(.[$k]))' --arg k "$ap_id"
   unlock_state
 }
 
@@ -171,6 +186,22 @@ emit() {
   fi
 }
 
+# Nombre d'agents encore vivants. Un agent dont on n'a plus de nouvelles depuis
+# AGENT_TTL est réputé mort : sans ce garde-fou, un SubagentStop perdu
+# condamnerait le reste du tour au silence.
+agents_vivants() {
+  state_read | jq -r --argjson lim "$(( $(date +%s) - AGENT_TTL ))" \
+    '[(.agents // {}) | to_entries[] | select(.value > $lim)] | length' 2>/dev/null || echo 0
+}
+
+# Secondes écoulées depuis la dernière frappe ou le dernier mouvement de souris.
+inactivite() {
+  if [ -n "${CC_NOTIFY_STUB_IDLE:-}" ]; then printf '%s' "$CC_NOTIFY_STUB_IDLE"; return 0; fi
+  ioreg -c IOHIDSystem 2>/dev/null \
+    | awk '/HIDIdleTime/ {print int($NF / 1000000000); exit}' \
+    | grep -E '^[0-9]+$' || echo 0
+}
+
 # Renvoie 0 si iTerm est au premier plan ET affiche la session de cet état.
 # Échoue ouvert : toute incertitude renvoie 1, donc la notification passe.
 front_tab_is_mine() {
@@ -205,7 +236,7 @@ decide() {
   # Une erreur contourne tous les filtres de « ça va repartir tout seul » :
   # justement, ça ne repartira pas.
   if [ "$d_type" != "error" ]; then
-    d_sub=$(state_get subagents);     [ -z "$d_sub" ]  && d_sub=0
+    d_sub=$(agents_vivants)
     d_bg=$(state_get bg);             [ -z "$d_bg" ]   && d_bg=0
     d_wake=$(state_get wakeup_until); [ -z "$d_wake" ] && d_wake=0
     [ "$d_sub"  -gt 0 ]        2>/dev/null && { printf 'sous-agent-actif'; return 1; }
@@ -213,13 +244,18 @@ decide() {
     [ "$d_wake" -gt "$d_now" ] 2>/dev/null && { printf 'reveil-programme'; return 1; }
   fi
 
-  # La durée minimale ne s'applique qu'à la fin de tour : une question et une
-  # erreur méritent d'être signalées même après cinq secondes.
+  # Fin de tour seulement : une question et une erreur méritent d'être signalées
+  # même après cinq secondes.
+  #
+  # Deux conditions doivent tenir pour se taire : le tour a été court ET la
+  # machine vient d'être touchée. Prises séparément, chacune se trompe. Un tour
+  # court pendant que vous êtes parti mérite une notification ; un tour long
+  # mérite la sienne même si vous tapez, car vous tapiez probablement ailleurs.
   if [ "$d_type" = "done" ]; then
     d_start=$(state_get turn_start)
-    if [ -n "$d_start" ]; then
-      if [ $((d_now - d_start)) -lt "$MIN_DURATION" ] 2>/dev/null; then
-        printf 'tour-court'; return 1
+    if [ -n "$d_start" ] && [ $((d_now - d_start)) -lt "$MIN_DURATION" ] 2>/dev/null; then
+      if [ "$(inactivite)" -lt "$MIN_IDLE" ] 2>/dev/null; then
+        printf 'utilisateur-present'; return 1
       fi
     fi
   fi
@@ -310,10 +346,19 @@ notify() {
 }
 
 # --------------------------------------------------------------- dispatch --
+# Suivi des sous-agents, avant tout traitement propre à l'événement. On ne se
+# fie pas au nom de l'événement mais à la présence d'un agent_id : c'est le seul
+# marqueur commun à tous les types d'agents, équipes comprises.
+AGENT_ID=$(in_get '.agent_id // ""')
+if [ -n "$AGENT_ID" ]; then
+  case "$EVENT" in
+    SubagentStop) agent_parti "$AGENT_ID" ;;
+    *)            agent_vu "$AGENT_ID" ;;
+  esac
+fi
+
 case "$EVENT" in
   UserPromptSubmit) h_user_prompt_submit ;;
-  SubagentStart)    h_subagent_start ;;
-  SubagentStop)     h_subagent_stop ;;
   PostToolUse)      h_post_tool_use ;;
   Stop)         emit done ;;
   StopFailure)  emit error ;;

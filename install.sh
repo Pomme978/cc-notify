@@ -37,6 +37,9 @@ ln -sf "$PROJET/vendor/cc-notify.app"  "$HOOKS/cc-notify-app"
 
 CMD="$HOOKS/cc-notify.sh"
 
+# PostToolUse est branché sur tous les outils, sans matcher : un appel
+# d outil est le seul signe de vie de certains types de sous-agents, ceux
+# qui n emettent pas SubagentStart.
 tmp=$(mktemp)
 jq --arg cmd "$CMD" '
   def entry: [{matcher: "", hooks: [{type: "command", command: $cmd, timeout: 10}]}];
@@ -46,8 +49,7 @@ jq --arg cmd "$CMD" '
   | .hooks.SubagentStop     = entry
   | .hooks.Stop             = entry
   | .hooks.StopFailure      = entry
-  | .hooks.PostToolUse      = [{matcher: "Bash|ScheduleWakeup|CronCreate",
-                                hooks: [{type: "command", command: $cmd, timeout: 10}]}]
+  | .hooks.PostToolUse      = entry
   | .hooks.Notification     = [{matcher: "permission_prompt|agent_needs_input",
                                 hooks: [{type: "command", command: $cmd, timeout: 10}]}]
 ' "$SETTINGS" > "$tmp" || { echo "échec de la fusion jq"; rm -f "$tmp"; exit 1; }
