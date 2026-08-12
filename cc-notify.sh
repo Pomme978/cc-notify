@@ -224,8 +224,42 @@ decide() {
   return 0
 }
 
-# Remplacée en Task 4.
-notify() { return 0; }
+# ----------------------------------------------------------------- rendu --
+notify() {
+  n_type="$1"
+
+  n_cwd=$(state_get cwd)
+  [ -z "$n_cwd" ] && n_cwd=$(in_get '.cwd // ""')
+  n_title=$(basename "$n_cwd" 2>/dev/null)
+  [ -z "$n_title" ] && n_title="Claude Code"
+
+  case "$n_type" in
+    done)     n_sub="Terminé";            n_sound="$SOUND_DONE" ;;
+    question) n_sub="Attend ta réponse";  n_sound="$SOUND_QUESTION" ;;
+    error)    n_sub="Erreur";             n_sound="$SOUND_ERROR" ;;
+    *)        n_sub="";                   n_sound="$SOUND_DONE" ;;
+  esac
+
+  n_msg=$(in_get '.last_assistant_message // .error_type // ""' | tr '\n\r\t' '   ')
+  n_msg="${n_msg:0:$BODY_LEN}"
+  [ -z "$(printf '%s' "$n_msg" | tr -d ' ')" ] && n_msg="Claude a rendu la main."
+
+  set -- -title "$n_title" -subtitle "$n_sub" -message "$n_msg" \
+         -sound "$n_sound" -group "$SID"
+
+  # Le clic active la fenêtre iTerm et sélectionne la session concernée.
+  n_iterm=$(state_get iterm_session)
+  if [ -n "$n_iterm" ] && [ -r "$FOCUS_SCPT" ]; then
+    set -- "$@" -execute "/usr/bin/osascript '$FOCUS_SCPT' '$n_iterm'"
+  fi
+
+  command -v terminal-notifier >/dev/null 2>&1 || {
+    log "terminal-notifier introuvable"
+    return 0
+  }
+  terminal-notifier "$@" >/dev/null 2>&1
+  return 0
+}
 
 # --------------------------------------------------------------- dispatch --
 case "$EVENT" in
