@@ -1,0 +1,174 @@
+# cc-notify
+
+Notifications macOS pour Claude Code, qui se taisent quand Claude va repartir tout seul.
+
+## Ce que ça fait
+
+Une bannière macOS quand une session Claude Code dans iTerm réclame vraiment votre
+attention : le tour est fini, une permission est demandée, ou le tour a échoué.
+Le clic active la fenêtre iTerm concernée et sélectionne sa session.
+
+La bannière porte l'icône Claude Code et se lit en trois lignes :
+
+| Ligne | Contenu |
+|---|---|
+| Titre | le sujet de la conversation, repris du nom de l'onglet iTerm |
+| Sous-titre | `Terminé`, `Attend ta réponse` ou `Erreur` |
+| Corps | le dernier message de Claude, tronqué |
+
+Claude Code tient le nom de l'onglet à jour avec le sujet de la conversation.
+Avec plusieurs sessions ouvertes, c'est lui qui dit laquelle vous appelle.
+
+Rien ne s'affiche si :
+
+- vous regardez déjà cet onglet ;
+- un sous-agent ou une tâche de fond tourne encore ;
+- un réveil est programmé (`/loop`, `ScheduleWakeup`, `CronCreate`) ;
+- le tour a duré moins de 30 secondes.
+
+Une erreur de tour contourne tous ces filtres sauf le premier : si la session est
+morte, elle ne repartira pas toute seule.
+
+## Installation
+
+### Prérequis
+
+macOS, iTerm2, et Homebrew. `jq` et `osascript` sont déjà là.
+
+    brew install terminal-notifier librsvg
+
+`terminal-notifier` envoie les bannières. `librsvg` fournit `rsvg-convert`, qui
+fabrique l'icône à partir du SVG — utile seulement pour la régénérer.
+
+### Poser le système
+
+    cd cc-notify
+    ./install.sh
+
+Le script est rejouable sans dommage. Il :
+
+1. fabrique l'icône et le bundle `vendor/cc-notify.app` s'ils manquent ;
+2. crée quatre liens symboliques dans `~/.claude/hooks/` — le code reste ici,
+   seuls les liens vivent dans `~/.claude/` ;
+3. fusionne sept entrées `hooks` dans `~/.claude/settings.json`, en préservant
+   tout le reste de votre configuration.
+
+### Redémarrer Claude Code
+
+**Indispensable.** Les hooks ne sont lus qu'au démarrage d'une session. Une
+session déjà ouverte continuera de les ignorer — c'est la cause numéro un de
+« ça ne filtre rien ».
+
+Vérifier ensuite avec `/hooks` que les sept événements apparaissent :
+`UserPromptSubmit`, `SubagentStart`, `SubagentStop`, `PostToolUse`, `Stop`,
+`StopFailure`, `Notification`.
+
+### Autoriser les notifications
+
+macOS ne crée l'entrée qu'après la première tentative d'envoi. Déclencher une
+notification de test :
+
+    ./vendor/cc-notify.app/Contents/MacOS/terminal-notifier \
+      -title "Test" -message "Bonjour" -sound Ping
+
+Puis Réglages Système → Notifications → **Claude Code** → autoriser les
+bannières et le son. Relancer la commande pour confirmer.
+
+L'entrée s'appelle « Claude Code » et non « terminal-notifier » : les
+notifications sont émises depuis notre propre bundle, seule façon d'afficher une
+icône personnalisée (voir la section Icône).
+
+### Vérifier de bout en bout
+
+1. `DEBUG=1` dans `cc-notify.conf`
+2. Lancer une requête longue, passer sur une autre application, attendre la fin →
+   bannière. Le clic ramène sur le bon onglet.
+3. Relancer une requête longue en restant sur l'onglet → pas de bannière, et
+   `grep 'SKIP onglet-actif' ~/.claude/state/cc-notify/log` remonte une ligne.
+4. Remettre `DEBUG=0`.
+
+## Réglages
+
+Tout est dans `cc-notify.conf`, relu à chaque notification — pas besoin de
+redémarrer quoi que ce soit après l'avoir modifié.
+
+| Clé | Défaut | Effet |
+|---|---|---|
+| `ENABLED` | `1` | `0` coupe tout sans désinstaller |
+| `MIN_DURATION` | `30` | en dessous, pas de notification de fin de tour |
+| `BODY_LEN` | `120` | troncature du corps du message |
+| `SOUND_DONE` | `Ping` | fin de tour |
+| `SOUND_QUESTION` | `Glass` | question ou permission |
+| `SOUND_ERROR` | `Basso` | erreur |
+| `DEBUG` | `0` | `1` journalise chaque événement et chaque décision |
+
+Les sons disponibles sont les fichiers de `/System/Library/Sounds`.
+
+## Icône
+
+`./make-icon.sh` produit `cc-notify-icon.png` et `cc-notify.icns` à partir du
+glyphe officiel Claude Code (`assets/claude-code.svg`). Deux retouches : les yeux
+du glyphe sont des trous dans le tracé, on glisse deux rectangles noirs derrière
+pour qu'ils se voient sur tout fond ; et le glyphe, large et bas, est recentré
+dans un carré avec la marge qu'attend une icône macOS.
+
+`./make-app.sh` construit `vendor/cc-notify.app`, une copie de
+`terminal-notifier.app` portant cette icône et le nom « Claude Code ». C'est
+indispensable : macOS ignore l'option `-appIcon`, qui reposait sur une API privée
+retirée depuis. L'icône affichée à gauche d'une bannière vient toujours du bundle
+de l'application émettrice — il faut donc émettre depuis le nôtre.
+
+Après avoir modifié le SVG : `./make-icon.sh && ./make-app.sh`.
+
+`assets/CaludeMascot_opt.gif` est conservé comme trace : c'est la mascotte animée
+dont provenait une première version de l'icône. Voir `assets/SOURCE.md`.
+
+## Dépannage
+
+Activer `DEBUG=1`, puis lire `~/.claude/state/cc-notify/log`. Deux types de
+lignes y apparaissent :
+
+    EVENT SubagentStart sid=… agent_type=Explore agent_id=…
+    SKIP sous-agent-actif type=done sid=…
+
+Les lignes `EVENT` tracent tout ce que Claude Code envoie. Les lignes `NOTIFY` et
+`SKIP` donnent la décision et son motif : `onglet-actif`, `sous-agent-actif`,
+`tache-de-fond`, `reveil-programme`, `tour-court`, `doublon`, `desactive`.
+
+**Aucune ligne n'apparaît.** Les hooks ne sont pas branchés. Vérifier `/hooks`,
+et redémarrer Claude Code si la session est antérieure à l'installation.
+
+**Des lignes `NOTIFY` mais aucune bannière.** L'autorisation macOS manque, voir
+plus haut.
+
+**Une notification part alors qu'un sous-agent tourne.** Chercher un
+`EVENT SubagentStart` juste avant dans le journal. S'il est absent, Claude Code
+n'émet pas cet événement pour ce type de tâche : relever le nom d'`EVENT` qui
+apparaît à sa place et l'ajouter au dispatch de `cc-notify.sh`. S'il est présent
+mais que son `sid=` diffère de celui du `Stop`, le compteur est écrit dans le
+mauvais fichier d'état.
+
+**Trop de notifications.** Monter `MIN_DURATION`. Pour couper temporairement,
+`ENABLED=0`.
+
+## Tests
+
+    ./test-cc-notify.sh
+
+36 cas, sans effet de bord : le mode `--dry-run` imprime la décision au lieu de
+notifier, et l'état est écrit dans un dossier temporaire.
+
+## Désinstallation
+
+    ./install.sh --uninstall
+
+Retire les liens symboliques et le bloc `hooks` de `settings.json`. Les fichiers
+du projet et l'état restent en place. L'entrée « Claude Code » subsiste dans les
+Réglages Système ; elle disparaîtra d'elle-même.
+
+## Documentation
+
+- `docs/superpowers/specs/2026-08-12-cc-notify-design.md` — la conception et ses
+  arbitrages : pourquoi le compteur de tâches de fond n'est jamais décrémenté,
+  pourquoi le système échoue ouvert, pourquoi `Stop` plutôt que `idle_prompt`
+- `docs/superpowers/plans/2026-08-12-cc-notify.md` — le plan d'implémentation
