@@ -6,3 +6,4 @@ state/
 # Reconstruits par install.sh : le bundle est volumineux, l'icns dérivé du SVG.
 vendor/
 cc-notify.icns
+cc-notify.local.conf

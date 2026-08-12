@@ -20,6 +20,8 @@ ESCALATE_AFTER=300
 
 CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
 [ -r "$CONF" ] && . "$CONF"
+# Réglages personnels, non versionnés : sujet ntfy, serveur privé, etc.
+[ -r "${CONF%.conf}.local.conf" ] && . "${CONF%.conf}.local.conf"
 
 STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
 

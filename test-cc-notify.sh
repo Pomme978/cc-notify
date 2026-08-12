@@ -260,6 +260,30 @@ EOF
 run_hook "$STOP"; assert_out "SKIP sous-agent-actif" "agent vu il y a 10 s : bien vivant"
 
 echo
+echo "== Titre de la bannière =="
+
+assert_titre() {
+  got=$(./cc-notify.sh --titre "$1" "$2" 2>&1)
+  if [ "$got" = "$3" ]; then
+    PASS=$((PASS + 1)); printf '  ok   %s\n' "$4"
+  else
+    FAIL=$((FAIL + 1)); printf '  FAIL %s\n       attendu: [%s]\n       obtenu : [%s]\n' "$4" "$3" "$got"
+  fi
+}
+
+TREPO="$CC_NOTIFY_STATE_DIR/mon-depot"
+mkdir -p "$TREPO/sous/dossier"
+( cd "$TREPO" && git init -q 2>/dev/null )
+assert_titre "$TREPO" "" "mon-depot" "un dépôt git donne son nom"
+assert_titre "$TREPO/sous/dossier" "" "mon-depot" "depuis un sous-dossier aussi"
+
+THORS="$CC_NOTIFY_STATE_DIR/sans git"
+mkdir -p "$THORS"
+assert_titre "$THORS" "UUID-INEXISTANT" "sans git" "hors dépôt et sans session : le nom du dossier"
+
+assert_titre "/chemin/qui/nexiste/pas" "" "pas" "un chemin inexistant ne fait pas échouer"
+
+echo
 echo "== Escalade vers le téléphone =="
 
 ESC_CONF="$CC_NOTIFY_STATE_DIR/esc.conf"

@@ -20,6 +20,8 @@ DEBUG=0
 
 CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
 [ -r "$CONF" ] && . "$CONF"
+# Réglages personnels, non versionnés : sujet ntfy, serveur privé, etc.
+[ -r "${CONF%.conf}.local.conf" ] && . "${CONF%.conf}.local.conf"
 
 STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
 FOCUS_SCPT="${CC_NOTIFY_FOCUS_SCPT:-$HOME/.claude/hooks/cc-notify-focus.scpt}"
@@ -38,7 +40,9 @@ DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
 # ------------------------------------------------------------------ entrée --
-INPUT=$(cat)
+# --titre n'attend rien sur stdin : c'est une sonde de diagnostic, pas un hook.
+INPUT=""
+[ "${1:-}" = "--titre" ] || INPUT=$(cat)
 EVENT=$(printf '%s' "$INPUT" | jq -r '.hook_event_name // ""' 2>/dev/null)
 SID=$(printf '%s' "$INPUT" | jq -r '.session_id // "inconnue"' 2>/dev/null)
 [ -z "$SID" ] && SID=inconnue
@@ -305,6 +309,34 @@ nom_session() {
     -e 'end run' "$ns_id" 2>/dev/null
 }
 
+# Titre de la bannière, par ordre de préférence :
+#   1. le nom du dépôt git — c'est lui qui identifie le projet, et il reste
+#      stable quand le sujet de la conversation dérive ;
+#   2. le nom de l'onglet iTerm, que Claude Code tient à jour avec le sujet ;
+#   3. le nom du dossier de travail.
+# Testable seul : cc-notify.sh --titre <dossier> [session_iterm]
+titre_notification() {
+  tn_cwd="$1"
+  tn_iterm="${2:-}"
+
+  tn_repo=$(cd "$tn_cwd" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+  if [ -n "$tn_repo" ]; then
+    basename "$tn_repo"
+    return 0
+  fi
+
+  # On retire le témoin d'activité en tête et le « (node) » ajouté en queue.
+  tn_nom=$(nom_session "$tn_iterm" | sed -e 's/ (node)$//' -e 's/^[^[:alnum:]]*[[:space:]]*//')
+  if [ -n "$tn_nom" ]; then
+    printf '%s\n' "$tn_nom"
+    return 0
+  fi
+
+  tn_base=$(basename "$tn_cwd" 2>/dev/null)
+  [ -z "$tn_base" ] && tn_base="Claude Code"
+  printf '%s\n' "$tn_base"
+}
+
 notify() {
   n_type="$1"
 
@@ -313,11 +345,8 @@ notify() {
   n_projet=$(basename "$n_cwd" 2>/dev/null)
   [ -z "$n_projet" ] && n_projet="Claude Code"
 
-  # Titre : le sujet de la conversation. On retire le témoin d'activité en tête
-  # et le « (node) » que le shell ajoute en queue.
   n_iterm=$(state_get iterm_session)
-  n_title=$(nom_session "$n_iterm" | sed -e 's/ (node)$//' -e 's/^[^[:alnum:]]*[[:space:]]*//')
-  [ -z "$n_title" ] && n_title="$n_projet"
+  n_title=$(titre_notification "$n_cwd" "$n_iterm")
 
   case "$n_type" in
     done)     n_sub="Terminé";            n_sound="$SOUND_DONE" ;;
@@ -370,6 +399,11 @@ notify() {
 }
 
 # --------------------------------------------------------------- dispatch --
+if [ "${1:-}" = "--titre" ]; then
+  titre_notification "${2:-$PWD}" "${3:-}"
+  exit 0
+fi
+
 # Suivi des sous-agents, avant tout traitement propre à l'événement. On ne se
 # fie pas au nom de l'événement mais à la présence d'un agent_id : c'est le seul
 # marqueur commun à tous les types d'agents, équipes comprises.

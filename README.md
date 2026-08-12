@@ -12,12 +12,18 @@ La bannière porte l'icône Claude Code et se lit en trois lignes :
 
 | Ligne | Contenu |
 |---|---|
-| Titre | le sujet de la conversation, repris du nom de l'onglet iTerm |
+| Titre | le nom du dépôt git |
 | Sous-titre | `Terminé`, `Attend ta réponse` ou `Erreur` |
 | Corps | le dernier message de Claude, tronqué |
 
-Claude Code tient le nom de l'onglet à jour avec le sujet de la conversation.
-Avec plusieurs sessions ouvertes, c'est lui qui dit laquelle vous appelle.
+Le titre identifie le projet, ce qui dit laquelle de vos sessions vous appelle.
+Le dépôt git est préféré au sujet de la conversation parce qu'il reste stable
+quand la discussion dérive. Hors dépôt, le titre retombe sur le nom de l'onglet
+iTerm — que Claude Code tient à jour avec le sujet — puis sur le nom du dossier.
+
+Pour voir ce que donnerait un dossier donné :
+
+    ./cc-notify.sh --titre /chemin/du/projet
 
 Sur une fin de tour, la bannière porte un **champ de réponse** : ce que vous y
 tapez est envoyé directement dans la session iTerm, sans quitter ce que vous
