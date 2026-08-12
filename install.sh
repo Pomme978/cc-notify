@@ -9,7 +9,8 @@ SETTINGS="$HOME/.claude/settings.json"
 
 if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$HOOKS/cc-notify.sh" "$HOOKS/cc-notify.conf" \
-        "$HOOKS/cc-notify-focus.scpt" "$HOOKS/cc-notify-icon.png"
+        "$HOOKS/cc-notify-focus.scpt" "$HOOKS/cc-notify-icon.png" \
+        "$HOOKS/cc-notify-app"
   tmp=$(mktemp)
   jq 'del(.hooks.UserPromptSubmit, .hooks.SubagentStart, .hooks.SubagentStop,
           .hooks.PostToolUse, .hooks.Stop, .hooks.StopFailure, .hooks.Notification)
@@ -27,10 +28,12 @@ command -v terminal-notifier >/dev/null 2>&1 || {
 mkdir -p "$HOOKS"
 chmod +x "$PROJET/cc-notify.sh"
 [ -f "$PROJET/cc-notify-icon.png" ] || "$PROJET/make-icon.sh"
-ln -sf "$PROJET/cc-notify.sh"         "$HOOKS/cc-notify.sh"
-ln -sf "$PROJET/cc-notify.conf"       "$HOOKS/cc-notify.conf"
-ln -sf "$PROJET/cc-notify-focus.scpt" "$HOOKS/cc-notify-focus.scpt"
-ln -sf "$PROJET/cc-notify-icon.png"   "$HOOKS/cc-notify-icon.png"
+[ -d "$PROJET/vendor/cc-notify.app" ] || "$PROJET/make-app.sh"
+ln -sf "$PROJET/cc-notify.sh"          "$HOOKS/cc-notify.sh"
+ln -sf "$PROJET/cc-notify.conf"        "$HOOKS/cc-notify.conf"
+ln -sf "$PROJET/cc-notify-focus.scpt"  "$HOOKS/cc-notify-focus.scpt"
+ln -sf "$PROJET/cc-notify-icon.png"    "$HOOKS/cc-notify-icon.png"
+ln -sf "$PROJET/vendor/cc-notify.app"  "$HOOKS/cc-notify-app"
 
 CMD="$HOOKS/cc-notify.sh"
 

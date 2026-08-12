@@ -20,6 +20,10 @@ CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
 STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
 FOCUS_SCPT="${CC_NOTIFY_FOCUS_SCPT:-$HOME/.claude/hooks/cc-notify-focus.scpt}"
 ICON="${CC_NOTIFY_ICON:-$HOME/.claude/hooks/cc-notify-icon.png}"
+# Notre copie de terminal-notifier, qui porte l'icône Claude Code. macOS ignore
+# l'option -appIcon : l'icône de gauche vient toujours du bundle émetteur.
+NOTIFIER="${CC_NOTIFY_NOTIFIER:-$HOME/.claude/hooks/cc-notify-app/Contents/MacOS/terminal-notifier}"
+[ -x "$NOTIFIER" ] || NOTIFIER=terminal-notifier
 LOG="$STATE_DIR/log"
 
 DRY_RUN=0
@@ -237,13 +241,40 @@ decide() {
 }
 
 # ----------------------------------------------------------------- rendu --
+# Nom de l'onglet iTerm, que Claude Code tient à jour avec le sujet de la
+# conversation. C'est ce qui identifie le mieux une session parmi plusieurs.
+nom_session() {
+  ns_id="$1"
+  [ -z "$ns_id" ] && return 0
+  osascript \
+    -e 'on run argv' \
+    -e 'with timeout of 5 seconds' \
+    -e 'tell application "iTerm2"' \
+    -e 'repeat with w in windows' \
+    -e 'repeat with t in tabs of w' \
+    -e 'repeat with s in sessions of t' \
+    -e 'if (id of s) is (item 1 of argv) then return name of s' \
+    -e 'end repeat' \
+    -e 'end repeat' \
+    -e 'end repeat' \
+    -e 'end tell' \
+    -e 'end timeout' \
+    -e 'end run' "$ns_id" 2>/dev/null
+}
+
 notify() {
   n_type="$1"
 
   n_cwd=$(state_get cwd)
   [ -z "$n_cwd" ] && n_cwd=$(in_get '.cwd // ""')
-  n_title=$(basename "$n_cwd" 2>/dev/null)
-  [ -z "$n_title" ] && n_title="Claude Code"
+  n_projet=$(basename "$n_cwd" 2>/dev/null)
+  [ -z "$n_projet" ] && n_projet="Claude Code"
+
+  # Titre : le sujet de la conversation. On retire le témoin d'activité en tête
+  # et le « (node) » que le shell ajoute en queue.
+  n_iterm=$(state_get iterm_session)
+  n_title=$(nom_session "$n_iterm" | sed -e 's/ (node)$//' -e 's/^[^[:alnum:]]*[[:space:]]*//')
+  [ -z "$n_title" ] && n_title="$n_projet"
 
   case "$n_type" in
     done)     n_sub="Terminé";            n_sound="$SOUND_DONE" ;;
@@ -251,6 +282,7 @@ notify() {
     error)    n_sub="Erreur";             n_sound="$SOUND_ERROR" ;;
     *)        n_sub="";                   n_sound="$SOUND_DONE" ;;
   esac
+  n_sub="$n_projet · $n_sub"
 
   n_msg=$(in_get '.last_assistant_message // .error_type // ""' | tr '\n\r\t' '   ')
   n_msg="${n_msg:0:$BODY_LEN}"
@@ -259,19 +291,22 @@ notify() {
   set -- -title "$n_title" -subtitle "$n_sub" -message "$n_msg" \
          -sound "$n_sound" -group "$SID"
 
-  [ -r "$ICON" ] && set -- "$@" -appIcon "$ICON" -contentImage "$ICON"
+  # L'icône du bundle sert d'icône de gauche ; -contentImage n'est utile qu'en
+  # repli, quand on retombe sur le terminal-notifier de Homebrew.
+  case "$NOTIFIER" in
+    terminal-notifier) [ -r "$ICON" ] && set -- "$@" -contentImage "$ICON" ;;
+  esac
 
   # Le clic active la fenêtre iTerm et sélectionne la session concernée.
-  n_iterm=$(state_get iterm_session)
   if [ -n "$n_iterm" ] && [ -r "$FOCUS_SCPT" ]; then
     set -- "$@" -execute "/usr/bin/osascript '$FOCUS_SCPT' '$n_iterm'"
   fi
 
-  command -v terminal-notifier >/dev/null 2>&1 || {
-    log "terminal-notifier introuvable"
+  command -v "$NOTIFIER" >/dev/null 2>&1 || {
+    log "notifieur introuvable: $NOTIFIER"
     return 0
   }
-  terminal-notifier "$@" >/dev/null 2>&1
+  "$NOTIFIER" "$@" >/dev/null 2>&1
   return 0
 }
 
