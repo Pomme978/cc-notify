@@ -41,6 +41,106 @@ log() {
 # Lit un champ du payload d'entrée.
 in_get() { printf '%s' "$INPUT" | jq -r "$1" 2>/dev/null; }
 
+# ------------------------------------------------------------------- état --
+# Verrou par répertoire : deux sous-agents peuvent démarrer simultanément et
+# une écriture perdue laisserait le compteur bloqué au-dessus de zéro, ce qui
+# supprimerait toutes les notifications du tour.
+LOCKDIR=""
+lock_state() {
+  LOCKDIR="$STATE.lock"
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  i=0
+  while ! mkdir "$LOCKDIR" 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -gt 50 ]; then rm -rf "$LOCKDIR" 2>/dev/null; mkdir "$LOCKDIR" 2>/dev/null; break; fi
+    sleep 0.02
+  done
+}
+unlock_state() {
+  [ -n "$LOCKDIR" ] && rmdir "$LOCKDIR" 2>/dev/null
+  LOCKDIR=""
+  return 0
+}
+
+state_read() {
+  if [ -f "$STATE" ]; then cat "$STATE" 2>/dev/null; else printf '{}'; fi
+}
+
+state_get() { state_read | jq -r --arg k "$1" '.[$k] // empty' 2>/dev/null; }
+
+# state_merge '<filtre jq>' [args jq…] — écriture atomique.
+state_merge() {
+  filter="$1"; shift
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  tmp="$STATE.tmp.$$"
+  if state_read | jq "$@" "$filter" > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$STATE" 2>/dev/null
+  else
+    rm -f "$tmp" 2>/dev/null
+  fi
+  return 0
+}
+
+h_user_prompt_submit() {
+  mkdir -p "$STATE_DIR" 2>/dev/null
+  iterm="${ITERM_SESSION_ID:-}"
+  iterm="${iterm##*:}"
+  cwd=$(in_get '.cwd // ""')
+  jq -n --argjson t "$(date +%s)" --arg i "$iterm" --arg c "$cwd" \
+    '{turn_start:$t, subagents:0, bg:0, wakeup_until:0,
+      iterm_session:$i, notified_prompt:"", cwd:$c}' > "$STATE" 2>/dev/null
+  # Purge des états orphelins de plus de 7 jours.
+  find "$STATE_DIR" -name '*.json' -mtime +7 -delete 2>/dev/null
+  return 0
+}
+
+h_subagent_start() {
+  lock_state
+  state_merge '.subagents = ((.subagents // 0) + 1)'
+  unlock_state
+}
+
+h_subagent_stop() {
+  lock_state
+  state_merge '.subagents = ([((.subagents // 0) - 1), 0] | max)'
+  unlock_state
+}
+
+h_post_tool_use() {
+  tool=$(in_get '.tool_name // ""')
+  now=$(date +%s)
+  case "$tool" in
+    ScheduleWakeup)
+      stop=$(in_get '.tool_input.stop // false')
+      lock_state
+      if [ "$stop" = "true" ]; then
+        state_merge '.wakeup_until = 0'
+      else
+        delay=$(in_get '.tool_input.delaySeconds // 0')
+        delay="${delay%%.*}"
+        case "$delay" in ''|*[!0-9]*) delay=0 ;; esac
+        state_merge '.wakeup_until = $u' --argjson u "$((now + delay))"
+      fi
+      unlock_state
+      ;;
+    CronCreate)
+      # On ne parse pas l'expression cron : une borne forfaitaire d'une heure
+      # suffit à couvrir « la session va repartir seule ».
+      lock_state
+      state_merge '.wakeup_until = $u' --argjson u "$((now + 3600))"
+      unlock_state
+      ;;
+    Bash)
+      if [ "$(in_get '.tool_input.run_in_background // false')" = "true" ]; then
+        lock_state
+        state_merge '.bg = ((.bg // 0) + 1)'
+        unlock_state
+      fi
+      ;;
+  esac
+  return 0
+}
+
 # --------------------------------------------------------------- décision --
 # Écrit sur stdout `NOTIFY <type>` ou `SKIP <motif>` en mode dry-run.
 emit() {
@@ -64,6 +164,10 @@ notify() { return 0; }
 
 # --------------------------------------------------------------- dispatch --
 case "$EVENT" in
+  UserPromptSubmit) h_user_prompt_submit ;;
+  SubagentStart)    h_subagent_start ;;
+  SubagentStop)     h_subagent_stop ;;
+  PostToolUse)      h_post_tool_use ;;
   Stop)         emit done ;;
   StopFailure)  emit error ;;
   Notification) emit question ;;
