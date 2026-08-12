@@ -1,7 +1,8 @@
 state/
 *.tmp.*
 .DS_Store
-vendor/
-cc-notify-icon.png
-cc-notify.icns
 .build-icon.iconset/
+
+# Reconstruits par install.sh : le bundle est volumineux, l'icns dérivé du SVG.
+vendor/
+cc-notify.icns
