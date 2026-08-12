@@ -19,12 +19,23 @@ La bannière porte l'icône Claude Code et se lit en trois lignes :
 Claude Code tient le nom de l'onglet à jour avec le sujet de la conversation.
 Avec plusieurs sessions ouvertes, c'est lui qui dit laquelle vous appelle.
 
+Sur une fin de tour, la bannière porte un **champ de réponse** : ce que vous y
+tapez est envoyé directement dans la session iTerm, sans quitter ce que vous
+faisiez. Les demandes de permission n'en ont pas — elles attendent une touche
+dans un sélecteur, pas du texte libre.
+
 Rien ne s'affiche si :
 
 - vous regardez déjà cet onglet ;
 - un sous-agent ou une tâche de fond tourne encore ;
 - un réveil est programmé (`/loop`, `ScheduleWakeup`, `CronCreate`) ;
-- le tour a duré moins de 30 secondes.
+- le tour a été court **et** vous venez de toucher la machine.
+
+Ce dernier filtre demande les deux conditions à la fois. Prises séparément,
+chacune se trompe : un tour court pendant votre absence mérite une notification,
+et un tour long la mérite aussi même si vous tapez — vous tapiez ailleurs.
+L'inactivité vient de `HIDIdleTime`, le compteur système de dernière frappe ou
+dernier mouvement de souris.
 
 Une erreur de tour contourne tous ces filtres sauf le premier : si la session est
 morte, elle ne repartira pas toute seule.
@@ -37,8 +48,14 @@ macOS, iTerm2, et Homebrew. `jq` et `osascript` sont déjà là.
 
     brew install terminal-notifier librsvg
 
-`terminal-notifier` envoie les bannières. `librsvg` fournit `rsvg-convert`, qui
-fabrique l'icône à partir du SVG — utile seulement pour la régénérer.
+`terminal-notifier` sert de repli. `librsvg` fournit `rsvg-convert`, qui fabrique
+l'icône à partir du SVG.
+
+Le notifieur principal est **alerter**, seul à savoir afficher un champ de
+réponse. Il n'est pas dans Homebrew : `get-alerter.sh` le récupère de sa release
+GitHub et refuse de l'installer si l'empreinte SHA-256 épinglée ou la signature
+Developer ID ne correspondent pas. `install.sh` l'appelle tout seul. Sans lui
+tout fonctionne, mais les bannières perdent leur champ de réponse.
 
 ### Poser le système
 
@@ -95,7 +112,9 @@ redémarrer quoi que ce soit après l'avoir modifié.
 | Clé | Défaut | Effet |
 |---|---|---|
 | `ENABLED` | `1` | `0` coupe tout sans désinstaller |
-| `MIN_DURATION` | `30` | en dessous, pas de notification de fin de tour |
+| `MIN_DURATION` | `30` | seuil de durée du tour, en secondes |
+| `MIN_IDLE` | `30` | seuil d'inactivité de la machine, en secondes |
+| `AGENT_TTL` | `600` | au-delà, un sous-agent muet est réputé mort |
 | `BODY_LEN` | `120` | troncature du corps du message |
 | `SOUND_DONE` | `Ping` | fin de tour |
 | `SOUND_QUESTION` | `Glass` | question ou permission |
@@ -141,12 +160,18 @@ et redémarrer Claude Code si la session est antérieure à l'installation.
 **Des lignes `NOTIFY` mais aucune bannière.** L'autorisation macOS manque, voir
 plus haut.
 
-**Une notification part alors qu'un sous-agent tourne.** Chercher un
-`EVENT SubagentStart` juste avant dans le journal. S'il est absent, Claude Code
-n'émet pas cet événement pour ce type de tâche : relever le nom d'`EVENT` qui
-apparaît à sa place et l'ajouter au dispatch de `cc-notify.sh`. S'il est présent
-mais que son `sid=` diffère de celui du `Stop`, le compteur est écrit dans le
-mauvais fichier d'état.
+**Une notification part alors qu'un sous-agent tourne.** Le suivi ne repose sur
+aucun événement particulier : tout événement portant un `agent_id` enregistre
+cet agent comme vivant, y compris un simple appel d'outil. Chercher dans le
+journal une ligne `EVENT … agent_id=…` pendant que l'agent travaille. Si aucune
+n'apparaît, Claude Code n'expose pas d'`agent_id` pour ce type de tâche. Si le
+`sid=` de ces lignes diffère de celui du `Stop`, l'état est écrit dans le mauvais
+fichier.
+
+**La réponse tapée dans la bannière n'arrive pas.** Vérifier que
+`~/.claude/hooks/cc-notify-alerter` existe et que la session iTerm visée est
+toujours ouverte. `cc-notify-send.sh` tourne détaché : ses erreurs ne remontent
+nulle part, le relancer à la main pour les voir.
 
 **Trop de notifications.** Monter `MIN_DURATION`. Pour couper temporairement,
 `ENABLED=0`.

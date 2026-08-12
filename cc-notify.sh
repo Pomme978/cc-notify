@@ -27,6 +27,9 @@ ICON="${CC_NOTIFY_ICON:-$HOME/.claude/hooks/cc-notify-icon.png}"
 # l'option -appIcon : l'icône de gauche vient toujours du bundle émetteur.
 NOTIFIER="${CC_NOTIFY_NOTIFIER:-$HOME/.claude/hooks/cc-notify-app/Contents/MacOS/terminal-notifier}"
 [ -x "$NOTIFIER" ] || NOTIFIER=terminal-notifier
+# alerter ajoute le champ de réponse. Absent, on retombe sur terminal-notifier.
+ALERTER="${CC_NOTIFY_ALERTER:-$HOME/.claude/hooks/cc-notify-alerter}"
+SEND="${CC_NOTIFY_SEND:-$HOME/.claude/hooks/cc-notify-send.sh}"
 LOG="$STATE_DIR/log"
 
 DRY_RUN=0
@@ -322,6 +325,15 @@ notify() {
   n_msg=$(in_get '.last_assistant_message // .error_type // ""' | tr '\n\r\t' '   ')
   n_msg="${n_msg:0:$BODY_LEN}"
   [ -z "$(printf '%s' "$n_msg" | tr -d ' ')" ] && n_msg="Claude a rendu la main."
+
+  # Voie préférée : alerter, qui sait afficher un champ de réponse. Il bloque
+  # jusqu'à l'interaction, donc on le lance détaché — un hook qui attendrait un
+  # humain bloquerait Claude Code.
+  if [ -x "$ALERTER" ] && [ -x "$SEND" ]; then
+    nohup "$SEND" "$n_type" "$n_title" "$n_sub" "$n_msg" "$n_sound" "$SID" "$n_iterm" \
+      </dev/null >/dev/null 2>&1 &
+    return 0
+  fi
 
   set -- -title "$n_title" -subtitle "$n_sub" -message "$n_msg" \
          -sound "$n_sound" -group "$SID"

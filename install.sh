@@ -10,7 +10,8 @@ SETTINGS="$HOME/.claude/settings.json"
 if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$HOOKS/cc-notify.sh" "$HOOKS/cc-notify.conf" \
         "$HOOKS/cc-notify-focus.scpt" "$HOOKS/cc-notify-icon.png" \
-        "$HOOKS/cc-notify-app"
+        "$HOOKS/cc-notify-app" "$HOOKS/cc-notify-alerter" \
+        "$HOOKS/cc-notify-send.sh" "$HOOKS/cc-notify-inject.scpt"
   tmp=$(mktemp)
   jq 'del(.hooks.UserPromptSubmit, .hooks.SubagentStart, .hooks.SubagentStop,
           .hooks.PostToolUse, .hooks.Stop, .hooks.StopFailure, .hooks.Notification)
@@ -29,11 +30,20 @@ mkdir -p "$HOOKS"
 chmod +x "$PROJET/cc-notify.sh"
 [ -f "$PROJET/cc-notify-icon.png" ] || "$PROJET/make-icon.sh"
 [ -d "$PROJET/vendor/cc-notify.app" ] || "$PROJET/make-app.sh"
-ln -sf "$PROJET/cc-notify.sh"          "$HOOKS/cc-notify.sh"
-ln -sf "$PROJET/cc-notify.conf"        "$HOOKS/cc-notify.conf"
-ln -sf "$PROJET/cc-notify-focus.scpt"  "$HOOKS/cc-notify-focus.scpt"
-ln -sf "$PROJET/cc-notify-icon.png"    "$HOOKS/cc-notify-icon.png"
-ln -sf "$PROJET/vendor/cc-notify.app"  "$HOOKS/cc-notify-app"
+# alerter est facultatif : sans lui, on retombe sur terminal-notifier, mais on
+# perd le champ de réponse dans la bannière.
+[ -x "$PROJET/vendor/alerter" ] || "$PROJET/get-alerter.sh" || \
+  echo "avertissement : alerter absent, pas de champ de réponse dans les bannières"
+chmod +x "$PROJET/cc-notify-send.sh"
+
+ln -sf "$PROJET/cc-notify.sh"           "$HOOKS/cc-notify.sh"
+ln -sf "$PROJET/cc-notify.conf"         "$HOOKS/cc-notify.conf"
+ln -sf "$PROJET/cc-notify-focus.scpt"   "$HOOKS/cc-notify-focus.scpt"
+ln -sf "$PROJET/cc-notify-inject.scpt"  "$HOOKS/cc-notify-inject.scpt"
+ln -sf "$PROJET/cc-notify-send.sh"      "$HOOKS/cc-notify-send.sh"
+ln -sf "$PROJET/cc-notify-icon.png"     "$HOOKS/cc-notify-icon.png"
+ln -sf "$PROJET/vendor/cc-notify.app"   "$HOOKS/cc-notify-app"
+[ -x "$PROJET/vendor/alerter" ] && ln -sf "$PROJET/vendor/alerter" "$HOOKS/cc-notify-alerter"
 
 CMD="$HOOKS/cc-notify.sh"
 
