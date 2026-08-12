@@ -260,6 +260,38 @@ EOF
 run_hook "$STOP"; assert_out "SKIP sous-agent-actif" "agent vu il y a 10 s : bien vivant"
 
 echo
+echo "== Escalade vers le téléphone =="
+
+ESC_CONF="$CC_NOTIFY_STATE_DIR/esc.conf"
+printf 'NTFY_TOPIC=sujet-de-test\nESCALATE_AFTER=1\n' > "$ESC_CONF"
+PENDING="$CC_NOTIFY_STATE_DIR/pending-$SID"
+
+# Personne ne réagit : le marqueur survit, le push part.
+: > "$PENDING"
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+assert_out "PUSH Mon projet | Terminé" "sans réaction : le push part"
+
+if [ -f "$PENDING" ]; then
+  FAIL=$((FAIL + 1)); echo "  FAIL le marqueur doit être consommé après le push"
+else
+  PASS=$((PASS + 1)); echo "  ok   le marqueur est consommé après le push"
+fi
+
+# Vous avez réagi entre-temps : le marqueur a disparu, rien ne part.
+: > "$PENDING"
+( sleep 0.3; rm -f "$PENDING" ) &
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+assert_out "" "réaction avant le délai : rien ne part"
+wait
+
+# Sans sujet configuré, l'escalade est inerte.
+printf 'NTFY_TOPIC=\nESCALATE_AFTER=1\n' > "$ESC_CONF"
+: > "$PENDING"
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+assert_out "" "sans NTFY_TOPIC : rien ne part"
+rm -f "$PENDING"
+
+echo
 printf 'Résultat : %d réussis, %d échoués\n' "$PASS" "$FAIL"
 rm -rf "$CC_NOTIFY_STATE_DIR"
 [ "$FAIL" -eq 0 ]

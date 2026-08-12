@@ -30,6 +30,12 @@ set -- --title "$TITRE" --subtitle "$SOUSTITRE" --message "$MESSAGE" \
 SORTIE=$("$ALERTER" "$@" 2>/dev/null)
 ACTION=$(printf '%s' "$SORTIE" | jq -r '.activationType // ""' 2>/dev/null)
 
+# Toute réaction de votre part annule l'escalade vers le téléphone.
+STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
+case "$ACTION" in
+  replied|contentsClicked|actionClicked) rm -f "$STATE_DIR/pending-$GROUPE" 2>/dev/null ;;
+esac
+
 case "$ACTION" in
   replied)
     REPONSE=$(printf '%s' "$SORTIE" | jq -r '.activationValue // ""' 2>/dev/null)

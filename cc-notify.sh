@@ -15,6 +15,7 @@ BODY_LEN=120
 SOUND_DONE=Ping
 SOUND_QUESTION=Glass
 SOUND_ERROR=Basso
+NTFY_TOPIC=""
 DEBUG=0
 
 CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
@@ -30,6 +31,7 @@ NOTIFIER="${CC_NOTIFY_NOTIFIER:-$HOME/.claude/hooks/cc-notify-app/Contents/MacOS
 # alerter ajoute le champ de réponse. Absent, on retombe sur terminal-notifier.
 ALERTER="${CC_NOTIFY_ALERTER:-$HOME/.claude/hooks/cc-notify-alerter}"
 SEND="${CC_NOTIFY_SEND:-$HOME/.claude/hooks/cc-notify-send.sh}"
+ESCALATE="${CC_NOTIFY_ESCALATE:-$HOME/.claude/hooks/cc-notify-escalate.sh}"
 LOG="$STATE_DIR/log"
 
 DRY_RUN=0
@@ -116,6 +118,8 @@ h_user_prompt_submit() {
   jq -n --argjson t "$(date +%s)" --arg i "$iterm" --arg c "$cwd" \
     '{turn_start:$t, agents:{}, bg:0, wakeup_until:0,
       iterm_session:$i, notified_prompt:"", cwd:$c}' > "$STATE" 2>/dev/null
+  # Vous venez de taper : rien n'est plus en attente, l'escalade est annulée.
+  rm -f "$STATE_DIR/pending-$SID" 2>/dev/null
   # Purge des états orphelins de plus de 7 jours.
   find "$STATE_DIR" -name '*.json' -mtime +7 -delete 2>/dev/null
   return 0
@@ -325,6 +329,14 @@ notify() {
   n_msg=$(in_get '.last_assistant_message // .error_type // ""' | tr '\n\r\t' '   ')
   n_msg="${n_msg:0:$BODY_LEN}"
   [ -z "$(printf '%s' "$n_msg" | tr -d ' ')" ] && n_msg="Claude a rendu la main."
+
+  # Marqueur d'attente, base de l'escalade vers le téléphone. Posé ici pour que
+  # les deux voies d'envoi en bénéficient, alerter comme terminal-notifier.
+  if [ -n "$NTFY_TOPIC" ] && [ -x "$ESCALATE" ]; then
+    mkdir -p "$STATE_DIR" 2>/dev/null
+    : > "$STATE_DIR/pending-$SID" 2>/dev/null
+    nohup "$ESCALATE" "$SID" "$n_title" "$n_sub" </dev/null >/dev/null 2>&1 &
+  fi
 
   # Voie préférée : alerter, qui sait afficher un champ de réponse. Il bloque
   # jusqu'à l'interaction, donc on le lance détaché — un hook qui attendrait un

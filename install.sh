@@ -11,7 +11,8 @@ if [ "${1:-}" = "--uninstall" ]; then
   rm -f "$HOOKS/cc-notify.sh" "$HOOKS/cc-notify.conf" \
         "$HOOKS/cc-notify-focus.scpt" "$HOOKS/cc-notify-icon.png" \
         "$HOOKS/cc-notify-app" "$HOOKS/cc-notify-alerter" \
-        "$HOOKS/cc-notify-send.sh" "$HOOKS/cc-notify-inject.scpt"
+        "$HOOKS/cc-notify-send.sh" "$HOOKS/cc-notify-inject.scpt" \
+        "$HOOKS/cc-notify-escalate.sh"
   tmp=$(mktemp)
   jq 'del(.hooks.UserPromptSubmit, .hooks.SubagentStart, .hooks.SubagentStop,
           .hooks.PostToolUse, .hooks.Stop, .hooks.StopFailure, .hooks.Notification)
@@ -34,13 +35,14 @@ chmod +x "$PROJET/cc-notify.sh"
 # perd le champ de réponse dans la bannière.
 [ -x "$PROJET/vendor/alerter" ] || "$PROJET/get-alerter.sh" || \
   echo "avertissement : alerter absent, pas de champ de réponse dans les bannières"
-chmod +x "$PROJET/cc-notify-send.sh"
+chmod +x "$PROJET/cc-notify-send.sh" "$PROJET/cc-notify-escalate.sh"
 
 ln -sf "$PROJET/cc-notify.sh"           "$HOOKS/cc-notify.sh"
 ln -sf "$PROJET/cc-notify.conf"         "$HOOKS/cc-notify.conf"
 ln -sf "$PROJET/cc-notify-focus.scpt"   "$HOOKS/cc-notify-focus.scpt"
 ln -sf "$PROJET/cc-notify-inject.scpt"  "$HOOKS/cc-notify-inject.scpt"
 ln -sf "$PROJET/cc-notify-send.sh"      "$HOOKS/cc-notify-send.sh"
+ln -sf "$PROJET/cc-notify-escalate.sh"  "$HOOKS/cc-notify-escalate.sh"
 ln -sf "$PROJET/cc-notify-icon.png"     "$HOOKS/cc-notify-icon.png"
 ln -sf "$PROJET/vendor/cc-notify.app"   "$HOOKS/cc-notify-app"
 [ -x "$PROJET/vendor/alerter" ] && ln -sf "$PROJET/vendor/alerter" "$HOOKS/cc-notify-alerter"

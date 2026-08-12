@@ -119,9 +119,33 @@ redémarrer quoi que ce soit après l'avoir modifié.
 | `SOUND_DONE` | `Ping` | fin de tour |
 | `SOUND_QUESTION` | `Glass` | question ou permission |
 | `SOUND_ERROR` | `Basso` | erreur |
+| `NTFY_TOPIC` | vide | sujet ntfy pour l'escalade ; vide = désactivé |
+| `NTFY_SERVER` | `https://ntfy.sh` | serveur ntfy |
+| `ESCALATE_AFTER` | `300` | délai avant escalade, en secondes |
 | `DEBUG` | `0` | `1` journalise chaque événement et chaque décision |
 
 Les sons disponibles sont les fichiers de `/System/Library/Sounds`.
+
+## Escalade vers le téléphone
+
+Désactivée par défaut. Une fois activée, si une bannière reste sans réaction
+pendant `ESCALATE_AFTER` secondes, un push part sur votre téléphone. Toute
+réaction l'annule : réponse dans la bannière, clic dessus, ou simple message
+tapé dans la session. L'escalade ne se déclenche donc que si vous êtes
+réellement parti — elle n'ajoute aucun bruit quand vous êtes là.
+
+Ça marche à distance : ntfy passe par internet, pas par votre réseau local.
+
+Pour l'activer :
+
+1. Tirer un nom de sujet imprévisible : `openssl rand -hex 16`
+2. Le mettre dans `NTFY_TOPIC` dans `cc-notify.conf`
+3. Installer l'application ntfy sur le téléphone et s'abonner à ce sujet
+
+**ntfy.sh est un service public sans authentification.** Quiconque connaît le nom
+du sujet lit vos notifications, et le titre de session — donc le sujet de votre
+conversation avec Claude — y transite en clair. D'où le nom aléatoire. Pour un
+usage sensible, héberger sa propre instance et pointer `NTFY_SERVER` dessus.
 
 ## Icône
 
