@@ -14,7 +14,7 @@ SOUND_QUESTION=Glass
 SOUND_ERROR=Basso
 DEBUG=0
 
-CONF="$HOME/.claude/hooks/cc-notify.conf"
+CONF="${CONF_OVERRIDE:-$HOME/.claude/hooks/cc-notify.conf}"
 [ -r "$CONF" ] && . "$CONF"
 
 STATE_DIR="${CC_NOTIFY_STATE_DIR:-$HOME/.claude/state/cc-notify}"
@@ -155,9 +155,74 @@ emit() {
   fi
 }
 
-# Renvoie 0 s'il faut notifier, 1 sinon en écrivant le motif sur stdout.
-# Remplacée en Task 3.
-decide() { return 0; }
+# Renvoie 0 si iTerm est au premier plan ET affiche la session de cet état.
+# Échoue ouvert : toute incertitude renvoie 1, donc la notification passe.
+front_tab_is_mine() {
+  case "${CC_NOTIFY_STUB_FRONT:-}" in
+    yes) return 0 ;;
+    no)  return 1 ;;
+  esac
+  mine=$(state_get iterm_session)
+  [ -z "$mine" ] && return 1
+  front=$(osascript \
+    -e 'with timeout of 5 seconds' \
+    -e 'tell application "System Events" to get name of first application process whose frontmost is true' \
+    -e 'end timeout' 2>/dev/null)
+  [ "$front" = "iTerm2" ] || return 1
+  cur=$(osascript \
+    -e 'with timeout of 5 seconds' \
+    -e 'tell application "iTerm2" to get id of current session of current tab of current window' \
+    -e 'end timeout' 2>/dev/null)
+  [ "$cur" = "$mine" ]
+}
+
+# Renvoie 0 s'il faut notifier ; sinon 1 en écrivant le motif sur stdout.
+decide() {
+  d_type="$1"
+
+  [ "$ENABLED" = "1" ] || { printf 'desactive'; return 1; }
+
+  front_tab_is_mine && { printf 'onglet-actif'; return 1; }
+
+  d_now=$(date +%s)
+
+  # Une erreur contourne tous les filtres de « ça va repartir tout seul » :
+  # justement, ça ne repartira pas.
+  if [ "$d_type" != "error" ]; then
+    d_sub=$(state_get subagents);     [ -z "$d_sub" ]  && d_sub=0
+    d_bg=$(state_get bg);             [ -z "$d_bg" ]   && d_bg=0
+    d_wake=$(state_get wakeup_until); [ -z "$d_wake" ] && d_wake=0
+    [ "$d_sub"  -gt 0 ]        2>/dev/null && { printf 'sous-agent-actif'; return 1; }
+    [ "$d_bg"   -gt 0 ]        2>/dev/null && { printf 'tache-de-fond'; return 1; }
+    [ "$d_wake" -gt "$d_now" ] 2>/dev/null && { printf 'reveil-programme'; return 1; }
+  fi
+
+  # La durée minimale ne s'applique qu'à la fin de tour : une question et une
+  # erreur méritent d'être signalées même après cinq secondes.
+  if [ "$d_type" = "done" ]; then
+    d_start=$(state_get turn_start)
+    if [ -n "$d_start" ]; then
+      if [ $((d_now - d_start)) -lt "$MIN_DURATION" ] 2>/dev/null; then
+        printf 'tour-court'; return 1
+      fi
+    fi
+  fi
+
+  # Déduplication réservée aux événements porteurs d'un prompt_id.
+  # `Notification` n'en reçoit pas : il ne lit ni n'écrit ce champ.
+  if [ "$d_type" = "done" ] || [ "$d_type" = "error" ]; then
+    d_pid=$(in_get '.prompt_id // ""')
+    if [ -n "$d_pid" ]; then
+      d_last=$(state_get notified_prompt)
+      [ "$d_pid" = "$d_last" ] && { printf 'doublon'; return 1; }
+      lock_state
+      state_merge '.notified_prompt = $p' --arg p "$d_pid"
+      unlock_state
+    fi
+  fi
+
+  return 0
+}
 
 # Remplacée en Task 4.
 notify() { return 0; }

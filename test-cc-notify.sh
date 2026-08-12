@@ -121,6 +121,83 @@ assert_key bg 0           "UserPromptSubmit remet bg à 0"
 assert_key wakeup_until 0 "UserPromptSubmit remet wakeup_until à 0"
 
 echo
+echo "== Task 3 : filtres de décision =="
+
+FUTUR=$((NOW + 600))
+PASSE=$((NOW - 600))
+VIEUX=$((NOW - 300))   # tour démarré il y a 5 min
+RECENT=$((NOW - 5))    # tour démarré il y a 5 s
+
+STOP='{"hook_event_name":"Stop","session_id":"test-session","prompt_id":"pX","last_assistant_message":"fini"}'
+QUEST='{"hook_event_name":"Notification","session_id":"test-session","notification_type":"permission_prompt"}'
+ERR='{"hook_event_name":"StopFailure","session_id":"test-session","prompt_id":"pE","error_type":"rate_limit"}'
+
+# 1 — tour trop court
+write_state "$RECENT" 0 0 0 "UUID-A" ""
+run_hook "$STOP"; assert_out "SKIP tour-court" "tour de 5 s : silence"
+
+# 2 — état propre, tour long
+write_state "$VIEUX" 0 0 0 "UUID-A" ""
+run_hook "$STOP"; assert_out "NOTIFY done" "tour de 5 min, état propre : notification"
+
+# 3 — sous-agent actif
+write_state "$VIEUX" 1 0 0 "UUID-A" ""
+run_hook "$STOP"; assert_out "SKIP sous-agent-actif" "sous-agent en cours : silence"
+
+# 4 — tâche de fond
+write_state "$VIEUX" 0 1 0 "UUID-A" ""
+run_hook "$STOP"; assert_out "SKIP tache-de-fond" "tâche de fond en cours : silence"
+
+# 5 — réveil programmé non échu
+write_state "$VIEUX" 0 0 "$FUTUR" "UUID-A" ""
+run_hook "$STOP"; assert_out "SKIP reveil-programme" "réveil à venir : silence"
+
+# 6 — réveil échu
+write_state "$VIEUX" 0 0 "$PASSE" "UUID-A" ""
+run_hook "$STOP"; assert_out "NOTIFY done" "réveil échu : notification"
+
+# 7 — question, tour court : la durée ne s'applique pas
+write_state "$RECENT" 0 0 0 "UUID-A" ""
+run_hook "$QUEST"; assert_out "NOTIFY question" "question après 5 s : notification"
+
+# 8 — erreur : seul l'onglet filtre
+write_state "$RECENT" 1 1 "$FUTUR" "UUID-A" ""
+run_hook "$ERR"; assert_out "NOTIFY error" "erreur : ignore sous-agent, fond, réveil et durée"
+
+# 9 — doublon
+write_state "$VIEUX" 0 0 0 "UUID-A" ""
+run_hook "$STOP"; assert_out "NOTIFY done" "première notification du tour"
+run_hook "$STOP"; assert_out "SKIP doublon" "seconde notification du même prompt_id : silence"
+
+# 10 — la question ne consomme pas le prompt_id, et n'est pas bloquée par lui
+write_state "$VIEUX" 0 0 0 "UUID-A" "pX"
+run_hook "$QUEST"; assert_out "NOTIFY question" "une question n'est jamais dédupliquée"
+run_hook "$STOP";  assert_out "SKIP doublon" "la question n'a pas consommé le prompt_id"
+
+# 11 — fichier d'état absent : échec ouvert
+reset_state
+run_hook "$STOP"; assert_out "NOTIFY done" "état absent : on notifie quand même"
+
+# 12 — état corrompu : échec ouvert
+mkdir -p "$CC_NOTIFY_STATE_DIR"
+printf 'ceci nest pas du json' > "$CC_NOTIFY_STATE_DIR/$SID.json"
+run_hook "$STOP"; assert_out "NOTIFY done" "état corrompu : on notifie quand même"
+
+# 13 — onglet au premier plan
+write_state "$VIEUX" 0 0 0 "UUID-A" ""
+CC_NOTIFY_STUB_FRONT=yes run_hook "$STOP"
+assert_out "SKIP onglet-actif" "onglet déjà regardé : silence"
+
+CC_NOTIFY_STUB_FRONT=yes run_hook "$ERR"
+assert_out "SKIP onglet-actif" "onglet déjà regardé : même les erreurs se taisent"
+
+# 14 — interrupteur général
+write_state "$VIEUX" 0 0 0 "UUID-A" ""
+printf 'ENABLED=0\n' > "$CC_NOTIFY_STATE_DIR/conf"
+CONF_OVERRIDE="$CC_NOTIFY_STATE_DIR/conf" run_hook "$STOP"
+assert_out "SKIP desactive" "ENABLED=0 : silence total"
+
+echo
 printf 'Résultat : %d réussis, %d échoués\n' "$PASS" "$FAIL"
 rm -rf "$CC_NOTIFY_STATE_DIR"
 [ "$FAIL" -eq 0 ]
