@@ -49,8 +49,7 @@ Dépôt du projet — <Workdir>/cc-notify/
   test-cc-notify.sh     harnais de test
   install.sh            liens symboliques + fusion dans settings.json
   README.md             installation, dépannage, désinstallation
-  docs/superpowers/specs/   cette spec
-  docs/superpowers/plans/   le plan d'implémentation
+  docs/conception.md    cette spec
 
 Liens symboliques créés par install.sh :
   ~/.claude/hooks/cc-notify.sh          ->  <projet>/cc-notify.sh
@@ -61,8 +60,6 @@ Liens symboliques créés par install.sh :
   ~/.claude/state/cc-notify/<sid>.json
   ~/.claude/state/cc-notify/log
 ```
-
-où `<Workdir>` est `~/Workdir`.
 
 Le script reste un fichier unique plutôt que découpé en bibliothèques : un hook est
 lancé plusieurs fois par tour, le coût de démarrage compte, et résoudre le chemin
