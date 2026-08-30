@@ -11,8 +11,8 @@ elle n'ajoute aucun bruit quand vous êtes là.
 ## Activer
 
 1. Tirer un nom de sujet imprévisible avec `openssl rand -hex 16`.
-2. Le mettre dans `NTFY_TOPIC`, de préférence dans `cc-notify.local.conf` qui n'est pas suivi
-   par git plutôt que dans `cc-notify.conf` qui l'est.
+2. Le mettre dans `NTFY_TOPIC`, de préférence dans `config/cc-notify.local.conf` qui n'est pas suivi
+   par git plutôt que dans `config/cc-notify.conf` qui l'est.
 3. Installer l'application ntfy sur le téléphone et s'abonner à ce sujet.
 
 ## Ce que ça expose

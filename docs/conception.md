@@ -42,19 +42,19 @@ d'une réinstallation de Claude Code ou d'un nettoyage du dossier de config. Seu
 des liens symboliques pointent depuis l'emplacement attendu par Claude Code.
 
 ```
-Dépôt du projet — <Workdir>/cc-notify/
-  cc-notify.sh          exécutable unique, dispatché par hook_event_name
-  cc-notify.conf        seuils, sons, interrupteur général
-  cc-notify-focus.scpt  AppleScript de focus, prend un UUID de session en argument
-  test-cc-notify.sh     harnais de test
-  install.sh            liens symboliques + fusion dans settings.json
-  README.md             installation, dépannage, désinstallation
-  docs/conception.md    cette spec
+Dépôt du projet
+  src/cc-notify.sh          exécutable unique, dispatché par hook_event_name
+  src/cc-notify-focus.scpt  AppleScript de focus, prend un UUID de session en argument
+  config/cc-notify.conf     seuils, sons, interrupteur général
+  tests/test-cc-notify.sh   harnais de test
+  install.sh                liens symboliques + fusion dans settings.json
+  README.md                 installation, dépannage, désinstallation
+  docs/conception.md        cette spec
 
 Liens symboliques créés par install.sh :
-  ~/.claude/hooks/cc-notify.sh          ->  <projet>/cc-notify.sh
-  ~/.claude/hooks/cc-notify.conf        ->  <projet>/cc-notify.conf
-  ~/.claude/hooks/cc-notify-focus.scpt  ->  <projet>/cc-notify-focus.scpt
+  ~/.claude/hooks/cc-notify.sh          ->  <projet>/src/cc-notify.sh
+  ~/.claude/hooks/cc-notify.conf        ->  <projet>/config/cc-notify.conf
+  ~/.claude/hooks/cc-notify-focus.scpt  ->  <projet>/src/cc-notify-focus.scpt
 
 État volatil (jetable, jamais sauvegardé) :
   ~/.claude/state/cc-notify/<sid>.json
@@ -251,7 +251,7 @@ réellement au premier plan, puis une valeur bidon.
 ## Installation
 
 1. `brew install terminal-notifier`
-2. Écrire les fichiers dans `<Workdir>/cc-notify/`, `chmod +x` sur le script
+2. Écrire les fichiers dans le dépôt, `chmod +x` sur le script
 3. Créer les liens symboliques vers `~/.claude/hooks/`
 4. Fusionner le bloc `hooks` dans `~/.claude/settings.json`, en préservant
    les clés existantes (`env`, `permissions`, `model`, `statusLine`,

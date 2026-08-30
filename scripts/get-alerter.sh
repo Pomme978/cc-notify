@@ -7,7 +7,7 @@
 #   * la signature Developer ID, qui doit remonter à Apple Root CA.
 # Si l'une échoue, on s'arrête sans rien installer.
 set -eu
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 VERSION=26.5
 URL="https://github.com/vjeantet/alerter/releases/download/v$VERSION/alerter-$VERSION.zip"

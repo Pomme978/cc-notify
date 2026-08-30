@@ -6,10 +6,10 @@ state/
 
 # Reconstruits par install.sh : le bundle est volumineux, l'icns dérivé du SVG.
 vendor/
-cc-notify.icns
+assets/cc-notify.icns
 
 # Réglages personnels : sujet ntfy, serveur privé.
-cc-notify.local.conf
+config/cc-notify.local.conf
 
 # Éditeurs
 .idea

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./cc-notify-icon.png" alt="cc-notify" height="80">
+  <img src="./assets/cc-notify-icon.png" alt="cc-notify" height="80">
 
   <h1>cc-notify</h1>
 
@@ -67,7 +67,7 @@ défaut.
 Le titre vient du dépôt git plutôt que du sujet de la conversation, parce qu'il reste stable
 quand la discussion dérive. Hors dépôt, il retombe sur le nom de l'onglet iTerm, que Claude
 Code tient à jour, puis sur le nom du dossier. Pour voir ce que donnerait un dossier donné,
-`./cc-notify.sh --titre /chemin/du/projet` répond sans rien notifier.
+`./src/cc-notify.sh --titre /chemin/du/projet` répond sans rien notifier.
 
 Le champ de réponse n'apparaît que sur une fin de tour. Une demande de permission attend une
 touche dans un sélecteur et pas du texte libre, donc y coller une phrase ferait n'importe quoi.
@@ -99,7 +99,7 @@ cd cc-notify
 
 `terminal-notifier` sert de repli et `librsvg` fournit `rsvg-convert`, qui fabrique l'icône à
 partir du SVG. Le notifieur principal est alerter, le seul à savoir afficher un champ de
-réponse. Comme il n'est pas dans Homebrew, `get-alerter.sh` va le chercher sur sa release
+réponse. Comme il n'est pas dans Homebrew, `scripts/get-alerter.sh` va le chercher sur sa release
 GitHub et refuse de l'installer si l'empreinte SHA-256 épinglée ou la signature Developer ID ne
 correspondent pas. `install.sh` s'en charge tout seul. Sans lui tout fonctionne, mais les
 bannières perdent leur champ de réponse.
@@ -133,7 +133,7 @@ façon d'afficher une icône personnalisée.
 
 ### Vérifier de bout en bout
 
-Passer `DEBUG=1` dans `cc-notify.conf`, lancer une requête longue, passer sur une autre
+Passer `DEBUG=1` dans `config/cc-notify.conf`, lancer une requête longue, passer sur une autre
 application et attendre la fin. Une bannière doit apparaître et le clic doit ramener sur le bon
 onglet. En relançant une requête longue tout en restant sur l'onglet, plus rien ne doit
 apparaître, et `grep 'SKIP onglet-actif' ~/.claude/state/cc-notify/log` doit remonter une
@@ -151,9 +151,9 @@ Système, où elle disparaîtra d'elle-même.
 
 ## Réglages
 
-Tout est dans `cc-notify.conf`, relu à chaque notification, donc rien n'est à redémarrer après
+Tout est dans `config/cc-notify.conf`, relu à chaque notification, donc rien n'est à redémarrer après
 une modification. Les réglages personnels qui n'ont pas à partir dans git, comme le sujet ntfy,
-vont dans `cc-notify.local.conf`, qui est ignoré par git et sourcé juste après.
+vont dans `config/cc-notify.local.conf`, qui est ignoré par git et sourcé juste après.
 
 | Clé | Défaut | Effet |
 |---|---|---|
@@ -175,11 +175,28 @@ Les sons disponibles sont les fichiers de `/System/Library/Sounds`.
 ## Tests
 
 ```bash
-./test-cc-notify.sh
+./tests/test-cc-notify.sh
 ```
 
 52 vérifications, sans aucun effet de bord, puisque le mode `--dry-run` imprime la décision au lieu de
 notifier et que l'état est écrit dans un dossier temporaire.
+
+## Structure
+
+```
+src/        le hook et ses satellites, un fichier Bash unique plus les AppleScript
+config/     cc-notify.conf, et cc-notify.local.conf pour ce qui ne part pas dans git
+scripts/    fabrication de l'icône, du bundle, et récupération de alerter
+tests/      le harnais de test
+assets/     le glyphe source, l'icône générée et les logos
+docs/       la conception, les pièges, les captures
+install.sh  liens symboliques et fusion dans settings.json
+vendor/     alerter et le bundle .app, reconstruits, jamais suivis par git
+```
+
+Le code vit dans le dépôt et pas dans `~/.claude/`, pour survivre à une réinstallation de
+Claude Code ou à un nettoyage du dossier de configuration. Seuls des liens symboliques pointent
+depuis l'emplacement où Claude Code va les chercher.
 
 ## Documentation
 
@@ -213,7 +230,12 @@ Code, qui appartient à Anthropic.
 
 <div align="center">
   <br>
-  <a href="https://solyzon.com">Solyzon</a>
+  <a href="https://solyzon.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./assets/solyzon-on-dark.svg">
+      <img src="./assets/solyzon-on-light.svg" alt="Solyzon" height="36">
+    </picture>
+  </a>
   <p><sub>Conception et développement par Solyzon.</sub></p>
   <p><sub>© 2026 Armand OCTEAU. Tous droits réservés.</sub></p>
 </div>

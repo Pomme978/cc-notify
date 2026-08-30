@@ -10,7 +10,7 @@
 # Effet secondaire assumé : une entrée distincte « Claude Code » apparaît dans
 # Réglages Système → Notifications, à autoriser une fois.
 set -eu
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 SRC="$(brew --prefix terminal-notifier)/terminal-notifier.app"
 DST="vendor/cc-notify.app"
@@ -18,14 +18,14 @@ ID="fr.allaan.cc-notify"
 NOM="Claude Code"
 
 [ -d "$SRC" ] || { echo "terminal-notifier introuvable. brew install terminal-notifier"; exit 1; }
-[ -f cc-notify.icns ] || ./make-icon.sh
+[ -f assets/cc-notify.icns ] || ./scripts/make-icon.sh
 
 rm -rf "$DST"
 mkdir -p vendor
 cp -R "$SRC" "$DST"
 
 rm -f "$DST/Contents/Resources/Terminal.icns"
-cp cc-notify.icns "$DST/Contents/Resources/cc-notify.icns"
+cp assets/cc-notify.icns "$DST/Contents/Resources/cc-notify.icns"
 
 P="$DST/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string "$ID"  "$P"

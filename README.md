@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./cc-notify-icon.png" alt="cc-notify" height="80">
+  <img src="./assets/cc-notify-icon.png" alt="cc-notify" height="80">
 
   <h1>cc-notify</h1>
 
@@ -37,7 +37,7 @@ is what it refuses to show.
 
 > The banners are in French, which is the language of the machine they were captured on. The
 > three state labels read `Terminé` (done), `Attend ta réponse` (waiting for you) and `Erreur`
-> (error), and they live in `cc-notify.sh` if you want to change them.
+> (error), and they live in `src/cc-notify.sh` if you want to change them.
 
 ## Stack
 
@@ -70,7 +70,7 @@ which is optional and off by default.
 The title comes from the git repository rather than from the conversation topic, because it
 stays stable as the discussion drifts. Outside a repository it falls back to the iTerm tab
 name, which Claude Code keeps up to date, then to the folder name. To see what a given folder
-would produce, `./cc-notify.sh --titre /path/to/project` answers without notifying anything.
+would produce, `./src/cc-notify.sh --titre /path/to/project` answers without notifying anything.
 
 The reply field only shows up on a finished turn. A permission request expects a keystroke in a
 picker rather than free text, so pasting a sentence into it would do something random.
@@ -102,7 +102,7 @@ cd cc-notify
 
 `terminal-notifier` is the fallback and `librsvg` provides `rsvg-convert`, which builds the
 icon from the SVG. The main notifier is alerter, the only one that can show a reply field.
-Since it is not in Homebrew, `get-alerter.sh` fetches it from its GitHub release and refuses to
+Since it is not in Homebrew, `scripts/get-alerter.sh` fetches it from its GitHub release and refuses to
 install it unless the pinned SHA-256 and the Developer ID signature both match. `install.sh`
 handles that on its own. Without it everything still works, but banners lose their reply field.
 
@@ -134,7 +134,7 @@ to show a custom icon.
 
 ### Check it end to end
 
-Set `DEBUG=1` in `cc-notify.conf`, start a long request, switch to another application and wait
+Set `DEBUG=1` in `config/cc-notify.conf`, start a long request, switch to another application and wait
 for it to finish. A banner should appear and clicking it should bring you back to the right
 tab. Starting another long request while staying on the tab should show nothing, and
 `grep 'SKIP onglet-actif' ~/.claude/state/cc-notify/log` should return a line. Then set
@@ -152,9 +152,9 @@ will disappear on its own.
 
 ## Settings
 
-Everything lives in `cc-notify.conf`, which is re-read on every notification, so nothing needs
+Everything lives in `config/cc-notify.conf`, which is re-read on every notification, so nothing needs
 restarting after a change. Personal settings that should not end up in git, such as the ntfy
-topic, go into `cc-notify.local.conf`, which git ignores and which is sourced right after.
+topic, go into `config/cc-notify.local.conf`, which git ignores and which is sourced right after.
 
 | Key | Default | Effect |
 |---|---|---|
@@ -176,11 +176,28 @@ Available sounds are the files in `/System/Library/Sounds`.
 ## Tests
 
 ```bash
-./test-cc-notify.sh
+./tests/test-cc-notify.sh
 ```
 
 52 checks with no side effect, since `--dry-run` prints the decision instead of notifying and
 state is written to a temporary folder.
+
+## Layout
+
+```
+src/        the hook and its satellites, one Bash file plus the AppleScripts
+config/     cc-notify.conf, plus cc-notify.local.conf for what stays out of git
+scripts/    icon and bundle building, and fetching alerter
+tests/      the test harness
+assets/     the source glyph, the generated icon and the logos
+docs/       design, gotchas, screenshots
+install.sh  symlinks and the merge into settings.json
+vendor/     alerter and the .app bundle, rebuilt, never tracked by git
+```
+
+The code lives in the repository rather than in `~/.claude/`, so it survives a Claude Code
+reinstall or a cleanup of the configuration folder. Only symlinks point from where Claude Code
+expects to find it.
 
 ## Documentation
 
@@ -215,7 +232,12 @@ material such as the Claude Code glyph, which belongs to Anthropic.
 
 <div align="center">
   <br>
-  <a href="https://solyzon.com">Solyzon</a>
+  <a href="https://solyzon.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./assets/solyzon-on-dark.svg">
+      <img src="./assets/solyzon-on-light.svg" alt="Solyzon" height="36">
+    </picture>
+  </a>
   <p><sub>Designed and developed by Solyzon.</sub></p>
   <p><sub>© 2026 Armand OCTEAU. All rights reserved.</sub></p>
 </div>

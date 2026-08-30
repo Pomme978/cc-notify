@@ -1,6 +1,6 @@
 #!/bin/bash
 # Harnais de test de cc-notify. Aucun effet de bord hors de son dossier temporaire.
-cd "$(dirname "$0")" || exit 1
+cd "$(dirname "$0")/.." || exit 1
 
 export CC_NOTIFY_STATE_DIR
 CC_NOTIFY_STATE_DIR=$(mktemp -d /tmp/cc-notify-test.XXXXXX)
@@ -14,7 +14,7 @@ SID="test-session"
 
 # Lance le script avec le JSON passé en argument, capture stdout dans $OUT.
 run_hook() {
-  OUT=$(printf '%s' "$1" | ./cc-notify.sh --dry-run 2>&1)
+  OUT=$(printf '%s' "$1" | ./src/cc-notify.sh --dry-run 2>&1)
 }
 
 # Compare $OUT à l'attendu.
@@ -263,7 +263,7 @@ echo
 echo "== Titre de la bannière =="
 
 assert_titre() {
-  got=$(./cc-notify.sh --titre "$1" "$2" 2>&1)
+  got=$(./src/cc-notify.sh --titre "$1" "$2" 2>&1)
   if [ "$got" = "$3" ]; then
     PASS=$((PASS + 1)); printf '  ok   %s\n' "$4"
   else
@@ -292,7 +292,7 @@ PENDING="$CC_NOTIFY_STATE_DIR/pending-$SID"
 
 # Personne ne réagit : le marqueur survit, le push part.
 : > "$PENDING"
-OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./src/cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
 assert_out "PUSH Mon projet | Terminé" "sans réaction : le push part"
 
 if [ -f "$PENDING" ]; then
@@ -304,14 +304,14 @@ fi
 # Vous avez réagi entre-temps : le marqueur a disparu, rien ne part.
 : > "$PENDING"
 ( sleep 0.3; rm -f "$PENDING" ) &
-OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./src/cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
 assert_out "" "réaction avant le délai : rien ne part"
 wait
 
 # Sans sujet configuré, l'escalade est inerte.
 printf 'NTFY_TOPIC=\nESCALATE_AFTER=1\n' > "$ESC_CONF"
 : > "$PENDING"
-OUT=$(CONF_OVERRIDE="$ESC_CONF" ./cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
+OUT=$(CONF_OVERRIDE="$ESC_CONF" ./src/cc-notify-escalate.sh --dry-run "$SID" "Mon projet" "Terminé" 2>&1)
 assert_out "" "sans NTFY_TOPIC : rien ne part"
 rm -f "$PENDING"
 

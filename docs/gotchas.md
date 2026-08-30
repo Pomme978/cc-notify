@@ -1,7 +1,7 @@
 # Pièges déjà rencontrés
 
 La première chose à faire quand quelque chose cloche est de passer `DEBUG=1` dans
-`cc-notify.conf`, puis de lire `~/.claude/state/cc-notify/log`. Deux types de lignes y
+`config/cc-notify.conf`, puis de lire `~/.claude/state/cc-notify/log`. Deux types de lignes y
 apparaissent.
 
 ```
