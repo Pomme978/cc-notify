@@ -1,3 +1,4 @@
+# État d'exécution et fichiers temporaires
 state/
 *.tmp.*
 .DS_Store
@@ -6,4 +7,18 @@ state/
 # Reconstruits par install.sh : le bundle est volumineux, l'icns dérivé du SVG.
 vendor/
 cc-notify.icns
+
+# Réglages personnels : sujet ntfy, serveur privé.
 cc-notify.local.conf
+
+# Éditeurs
+.idea
+.vscode
+.fleet
+.nova
+.zed
+
+# Claude Code
+.claude/settings.local.json
+CLAUDE.local.md
+.superpowers/

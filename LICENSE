@@ -1,0 +1,50 @@
+Licence propriétaire
+
+Copyright (c) 2026 Armand OCTEAU. Tous droits réservés.
+
+Ce dépôt est publié en lecture seule, à titre de démonstration et de référence.
+Sa mise à disposition publique ne vaut en aucun cas cession de droits, et le code
+reste la propriété exclusive de son auteur.
+
+Toute reproduction, redistribution, modification, publication, exploitation
+commerciale ou utilisation par un tiers, en tout ou partie, est interdite sans
+autorisation écrite préalable de l'auteur. Cloner le dépôt pour lire le code ou
+l'exécuter sur sa propre machine à des fins strictement personnelles reste
+autorisé, et rien d'autre ne l'est.
+
+Le logiciel est fourni « en l'état », sans garantie d'aucune sorte, expresse ou
+implicite. L'auteur ne pourra être tenu responsable d'un quelconque dommage
+résultant de son utilisation.
+
+Éléments tiers
+
+Le glyphe de `assets/claude-code.svg` appartient à Anthropic et n'est repris ici
+que pour identifier Claude Code. Il n'est couvert ni par la présente licence ni
+par le droit d'auteur de l'auteur du dépôt. Les binaires récupérés par
+`get-alerter.sh` restent régis par la licence de leurs propres auteurs.
+
+--------------------------------------------------------------------------------
+
+Proprietary licence (English courtesy translation, the French text prevails)
+
+Copyright (c) 2026 Armand OCTEAU. All rights reserved.
+
+This repository is published read only, as a demonstration and a reference.
+Making it public grants no rights whatsoever, and the code remains the exclusive
+property of its author.
+
+Any reproduction, redistribution, modification, publication, commercial
+exploitation or third party use, in whole or in part, is forbidden without the
+prior written permission of the author. Cloning the repository to read the code
+or to run it on your own machine for strictly personal purposes remains allowed,
+and nothing else is.
+
+The software is provided "as is", without warranty of any kind, express or
+implied. The author shall not be held liable for any damage arising from its use.
+
+Third party material
+
+The glyph in `assets/claude-code.svg` belongs to Anthropic and appears here only
+to identify Claude Code. It is covered neither by this licence nor by the
+copyright of the repository author. Binaries fetched by `get-alerter.sh` remain
+governed by the licences of their own authors.

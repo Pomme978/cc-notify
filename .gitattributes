@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.md diff=markdown
+*.sh text eol=lf diff=bash
+*.scpt text eol=lf
+*.conf text eol=lf
+
+*.png binary
+*.svg text
+*.icns binary
+
+.github/ export-ignore
