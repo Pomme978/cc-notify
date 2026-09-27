@@ -8,6 +8,7 @@ extraient, et chacun est soumis au hook comme un `file_path`.
 
 Usage : adapt.py <chemin du hook .claude à appeler>
 """
+
 import json
 import re
 import shlex
@@ -17,7 +18,10 @@ from pathlib import Path
 
 COMMAND_KEYS = ("command", "cmd", "shell_command", "script")
 PATH_KEYS = ("file_path", "path", "filename", "file")
-PATCH_PATH = re.compile(r"^\*\*\*\s+(?:Add|Update|Delete)\s+File:\s*(.+?)\s*$", re.MULTILINE)
+PATCH_PATH = re.compile(
+    r"^\*\*\*\s+(?:Add|Update|Delete)\s+File:\s*(.+?)\s*$",
+    re.MULTILINE,
+)
 PATCH_MOVE = re.compile(r"^\*\*\*\s+Move\s+to:\s*(.+?)\s*$", re.MULTILINE)
 
 payload = json.load(sys.stdin)
@@ -45,7 +49,8 @@ for key in PATH_KEYS:
     if isinstance(value, str) and value.strip():
         paths.append(value)
 
-if payload.get("tool_name") == "apply_patch" or "*** Begin Patch" in normalized.get("command", ""):
+command = normalized.get("command", "")
+if payload.get("tool_name") == "apply_patch" or "*** Begin Patch" in command:
     patch = normalized.pop("command", "")
     paths.extend(PATCH_PATH.findall(patch))
     paths.extend(PATCH_MOVE.findall(patch))
@@ -83,13 +88,17 @@ def run(inner: dict) -> tuple[int, str, str]:
 def refuse(reason: str) -> None:
     event = payload.get("hook_event_name", "PreToolUse")
     if event == "PreToolUse":
-        print(json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }
-        }))
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": reason,
+                    }
+                }
+            )
+        )
     else:
         print(json.dumps({"decision": "block", "reason": reason}))
     sys.exit(0)

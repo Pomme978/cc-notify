@@ -3,6 +3,8 @@ name: commit
 description: Prépare et rédige un commit aux normes Solyzon (Conventional Commits, français, impératif). Utiliser dès qu'il faut committer, ou quand l'utilisateur demande de committer, de préparer un commit, ou de rédiger un message de commit.
 argument-hint: "[scope ou description optionnelle]"
 allowed-tools: "Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git pull:*), Bash(git push:*), Bash(git checkout:*), Bash(git merge:*), Bash(git branch:*), Read, Grep, Glob"
+metadata:
+  version: "1.0.1"
 ---
 
 # Committer
@@ -40,6 +42,8 @@ elle vaut aussi pour le push. Demander un commit, c'est demander qu'il parte.
 
 Même chose quand la demande lance une skill qui déclare valoir feu vert, comme
 `sync-solyzon` ou `new-project` : leurs commits sont déjà validés par cette demande.
+Et pour un piège évident consigné selon la règle « Apprendre » du socle : son commit, qui ne
+contient que `docs/gotchas.md`, part sans attendre.
 
 ## Procédure
 
