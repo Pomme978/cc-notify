@@ -1,0 +1,28 @@
+{
+  "description": "Garde-fous Solyzon, rejoués sous Codex depuis les hooks de .claude/hooks/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -e \"${SOLYZON_LINK:-$HOME/.solyzon/tools}\" || printf '%s\\n' '{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"Le socle Solyzon n'\\''est pas installé sur ce Mac : le lien ~/.solyzon/tools n'\\''existe pas, donc les règles communes, les pièges partagés et les skills Solyzon manquent à cette session. Avant toute autre tâche, dis-le à l'\\''utilisateur et propose de l'\\''installer : cloner https://github.com/Solyzon/outils-solyzon, dépôt privé de l'\\''organisation Solyzon, dans ~/Documents/Workdir/outils-solyzon ou le dossier de son choix, lancer scripts/sync.sh depuis le clone, puis relancer la session.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/adapt.py\" \"$(git rev-parse --show-toplevel)/.claude/hooks/check-edit.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

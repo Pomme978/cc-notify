@@ -1,0 +1,2 @@
+# AGENTS.md dépasse les 32 Kio que Codex lit par défaut.
+project_doc_max_bytes = 131072
