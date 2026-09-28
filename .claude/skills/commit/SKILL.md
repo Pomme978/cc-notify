@@ -1,10 +1,10 @@
 ---
 name: commit
-description: Prépare et rédige un commit aux normes Solyzon (Conventional Commits, français, impératif). Utiliser dès qu'il faut committer, ou quand l'utilisateur demande de committer, de préparer un commit, ou de rédiger un message de commit.
+description: Prépare et rédige un commit aux normes Solyzon (Conventional Commits, anglais, impératif). Utiliser dès qu'il faut committer, ou quand l'utilisateur demande de committer, de préparer un commit, ou de rédiger un message de commit.
 argument-hint: "[scope ou description optionnelle]"
 allowed-tools: "Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git fetch:*), Bash(git pull:*), Bash(git push:*), Bash(git checkout:*), Bash(git merge:*), Bash(git branch:*), Read, Grep, Glob"
 metadata:
-  version: "1.0.1"
+  version: "1.1.0"
 ---
 
 # Committer
@@ -103,15 +103,10 @@ Vérifier avec `grep -rn '<nom_supprimé>'`.
 
 ### 5. Rédiger le message
 
-Format `<type>(<scope>): <description>`, scope optionnel, description en **français, à
-l'impératif, en minuscule**, sans point final.
-
-**Les accents sont obligatoires, sujet et corps compris.** `é è ê ë à â ù û ô î ï ç`, jamais
-« apercu », « poussee », « edite », « derive ». Un message sans accents est à réécrire, pas à
-laisser passer. Le piège vient de la rédaction du message dans un heredoc ou un `printf` du
-terminal, où l'on s'autotronque par réflexe d'échappement : écrire le message accentué dans un
-fichier, puis `git commit -F <fichier>`, et relire le résultat avec `git log -1` avant de
-passer à la suite.
+Format `<type>(<scope>): <description>`, scope optionnel, description en **anglais, à
+l'impératif, en minuscule**, sans point final. Le corps s'écrit en anglais lui aussi, dans tous
+les projets. Un message de plusieurs lignes s'écrit dans un fichier, puis `git commit -F
+<fichier>`, et se relit avec `git log -1` avant de passer à la suite.
 
 **Cent caractères maximum par ligne, corps compris**, parce que `commitlint` applique
 `header-max-length` et `body-max-line-length` et rejette au-delà. Un corps qui explique un
@@ -135,11 +130,11 @@ d'un seul tenant.
 Un changement cassant suffixe le type d'un `!`, ou ajoute `BREAKING CHANGE:` en pied.
 
 ```
-feat(auth): ajoute la connexion par lien magique
-fix(upload): corrige la validation du type MIME
-refactor(api): extrait la logique de pagination dans un service
-docs: met à jour le README avec la procédure de déploiement
-chore: bump des dépendances
+feat(auth): add magic link sign-in
+fix(upload): validate the mime type before storing the file
+refactor(api): extract pagination into a service
+docs: document the deployment procedure in the readme
+chore: bump dependencies
 ```
 
 Quand le type hésite, le comportement qui change pour l'utilisateur donne `feat` ou `fix`, la
